@@ -1,0 +1,90 @@
+const express = require("express");
+const { ethers } = require("hardhat"); // Corrected import
+require("dotenv").config();
+
+const app = express();
+app.use(express.json());
+
+// Ethereum Provider (Use getNetwork instead of toBigInt)
+const provider = new ethers.JsonRpcProvider(
+  `https://eth-sepolia.g.alchemy.com/v2/${process.env.apiKey}`
+);
+
+// Track wallet balances
+let addressList = {
+  address1: { address: process.env.account1, balance: 0n }, // Ensure BigInt
+};
+
+// Fetch balances (async function)
+async function fetchInitialBalances() {
+  for (let key in addressList) {
+    if (addressList.hasOwnProperty(key)) {
+      const entry = addressList[key];
+      const balance = await provider.getBalance(entry.address);
+      addressList[key].balance = BigInt(balance); // Store as BigInt
+    }
+  }
+  console.log("Updated Balances: ", addressList);
+}
+
+// Initialize balances at startup
+fetchInitialBalances();
+
+// Handle Incoming Transactions
+app.post("/", async (req, res) => {
+  try {
+    console.log("Received a POST request:", req.body.event.activity[0]);
+    res.send("POST request received");
+
+    let val = ethers.parseEther(req.body.event.activity[0].value.toString()); // Convert to wei
+
+    for (let key in addressList) {
+      if (addressList.hasOwnProperty(key)) {
+        const entry = addressList[key];
+
+        // Convert balance to BigInt (already stored in wei)
+        const balanceBigInt = entry.balance;
+
+        // Handle outgoing transactions
+        if (
+          entry.address.toLowerCase() ===
+          req.body.event.activity[0].fromAddress.toLowerCase()
+        ) {
+          if (val > balanceBigInt) {
+            throw new Error("Transaction value exceeds balance");
+          }
+          if (balanceBigInt - val <= ethers.parseEther("2")) {
+            console.log("Oops! Balance is too low.");
+          }
+
+          // Wait 5 seconds before updating balance to ensure blockchain state updates
+          setTimeout(async () => {
+            await fetchInitialBalances();
+            console.log("Updated balance after outgoing transaction.");
+          }, 5000);
+        }
+
+        // Handle incoming transactions
+        else if (
+          entry.address.toLowerCase() ===
+          req.body.event.activity[0].toAddress.toLowerCase()
+        ) {
+          // Wait for transaction to be confirmed before updating balance
+          setTimeout(async () => {
+            await fetchInitialBalances();
+            console.log("Updated balance after incoming transaction.");
+          }, 5000);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error processing POST request:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Start Server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
