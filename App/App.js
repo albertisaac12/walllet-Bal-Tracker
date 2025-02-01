@@ -2,7 +2,7 @@ require("dotenv").config();
 const { App, ExpressReceiver } = require("@slack/bolt");
 const express = require("express");
 const { ethers } = require("hardhat");
-const fs = require("fs");
+// const fs = require("fs");
 
 // Create ExpressReceiver to handle requests
 const receiver = new ExpressReceiver({
@@ -21,7 +21,7 @@ const app = receiver.app;
 // Middleware to parse JSON (already handled by ExpressReceiver, but just in case)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Handle Slack URL Verification
+// Handle Slack URL Verification One Time
 app.post("/slack/events", async (req, res) => {
   const { type } = req.body;
   if (type === "url_verification") {
@@ -74,17 +74,17 @@ app.post("/slack/alchemy", async (req, res) => {
   console.log("Received request on /slack/alchemy:", req.body);
 
   try {
-    let totalValue = 0;
+    // let totalValue = 0;
     const admin = process.env.ADMIN_WALLET;
 
     // Loop through all activities
-    const activities = req.body.event.activity;
+    /* const activities = req.body.event.activity;
     console.log(activities);
     for (let activity of activities) {
       if (activity.asset === "MATIC" && activity.fromAddress === admin) {
         totalValue += activity.value; // Add value only if asset is "POL"
       }
-    }
+    }*/
 
     // Fetch the wallet balance from the provider
     const provider = new ethers.JsonRpcProvider(
@@ -118,7 +118,7 @@ app.post("/slack/alchemy", async (req, res) => {
         // Send message to the dynamically found channel
         await slackApp.client.chat.postMessage({
           channel: channel.id, // Use the channel ID dynamically
-          text: `Alert: Wallet balance is below 10 POL! Current balance: ${balanceInMatic} MATIC`,
+          text: `Alert: Wallet balance of ${admin} is below 10 POL! Current balance: ${balanceInMatic} POL`,
         });
         console.log(`Message sent to ${channel.name} channel`);
       } else {
@@ -135,72 +135,141 @@ app.post("/slack/alchemy", async (req, res) => {
 
 /* Balance Fetcher */
 // Handle /balance command
+// app.post("/slack/balance", async (req, res) => {
+//   console.log("Request Body:", req.body); // Log the full request body
+//   const { text, channel_id } = req.body; // `text` is the user input (address), `channel_id` is the Slack channel where the command was invoked
+
+//   if (!text) {
+//     console.log("No address provided!"); // Log if no address is found
+//     return res.status(200).json({
+//       response_type: "ephemeral",
+//       text: "Please provide an address to check the balance.",
+//     });
+//   }
+
+//   if (!ethers.isAddress(text)) {
+//     console.log("Invalid Ethereum address provided!");
+//     return res.status(200).json({
+//       response_type: "ephemeral",
+//       text: "The provided address is not a valid Ethereum address. Please provide a valid address.",
+//     });
+//   }
+//   try {
+//     console.log("Address provided:", text); // Log the address being used
+//     // Fetch balance for the provided address
+//     const provider = new ethers.JsonRpcProvider(
+//       process.env.BALLANCE_FETCHER_API
+//     );
+//     const balance = await provider.getBalance(text); // `text` contains the address
+//     const formattedBalance = ethers.formatEther(ethers.toBigInt(balance)); // Store as BigInt if needed
+
+//     /* // Send the balance to the channel
+//     await slackApp.client.chat.postMessage({
+//       channel: channel_id,
+//       text: `The balance for address ${text} is: ${ethers.formatEther(
+//         formattedBalance
+//       )}`,
+//     });
+//     */
+
+//     // Respond back to the Slack command to acknowledge the request
+//     return res.status(200).json({
+//       response_type: "ephemeral",
+//       text: `The balance for address ${text} is: ${formattedBalance}`,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching balance:", error);
+
+//     await slackApp.client.chat.postMessage({
+//       channel: channel_id,
+//       text: "There was an error fetching the balance. Please check the address and try again.",
+//     });
+
+//     return res.status(200).json({
+//       response_type: "ephemeral",
+//       text: "Error fetching balance.",
+//     });
+//   }
+// });
+
+const getAddressFromId = (id) => {
+  try {
+    const idToAddressMapping = JSON.parse(process.env.ID_TO_ADDRESS || "{}"); // Read from env as JSON object
+    return idToAddressMapping[id] || null;
+  } catch (error) {
+    console.error("Error parsing ID_TO_ADDRESS:", error);
+    return null;
+  }
+};
+
 app.post("/slack/balance", async (req, res) => {
-  console.log("Request Body:", req.body); // Log the full request body
-  const { text, channel_id } = req.body; // `text` is the user input (address), `channel_id` is the Slack channel where the command was invoked
+  console.log("Request Body:", req.body);
+
+  const { text, channel_id } = req.body; // `text` is the argument passed to the command
 
   if (!text) {
-    console.log("No address provided!"); // Log if no address is found
+    console.log("No address or ID provided!");
     return res.status(200).json({
       response_type: "ephemeral",
-      text: "Please provide an address to check the balance.",
+      text: "Please provide an Ethereum address or ID to check the balance.",
     });
   }
 
-  if (!ethers.isAddress(text)) {
-    console.log("Invalid Ethereum address provided!");
-    return res.status(200).json({
-      response_type: "ephemeral",
-      text: "The provided address is not a valid Ethereum address. Please provide a valid address.",
-    });
+  let address = text.trim(); // Remove any spaces
+
+  // If input is not an Ethereum address, assume it's an ID and fetch the address
+  if (!ethers.isAddress(address)) {
+    console.log(`Fetching address for ID: ${address}`);
+    address = getAddressFromId(address);
+
+    if (!address) {
+      return res.status(200).json({
+        response_type: "ephemeral",
+        text: `❌ Error: No address found for ID "${text}". Please provide a valid Ethereum address or ID.`,
+      });
+    }
   }
+
   try {
-    console.log("Address provided:", text); // Log the address being used
-    // Fetch balance for the provided address
-    const provider = new ethers.JsonRpcProvider(
-      process.env.BALLANCE_FETCHER_API
-    );
-    const balance = await provider.getBalance(text); // `text` contains the address
-    const formattedBalance = ethers.formatEther(ethers.toBigInt(balance)); // Store as BigInt if needed
+    console.log("Fetching balance for:", address);
+    const balance = await provider.getBalance(address);
+    const formattedBalance = ethers.formatEther(balance); // Convert from Wei to MATIC
 
-    /* // Send the balance to the channel
-    await slackApp.client.chat.postMessage({
-      channel: channel_id,
-      text: `The balance for address ${text} is: ${ethers.formatEther(
-        formattedBalance
-      )}`,
-    });
-    */
-
-    // Respond back to the Slack command to acknowledge the request
+    // Respond back to Slack
     return res.status(200).json({
       response_type: "ephemeral",
-      text: `The balance for address ${text} is: ${formattedBalance}`,
+      text: `✅ The balance for address *${address}* is *${formattedBalance} MATIC*`,
     });
   } catch (error) {
     console.error("Error fetching balance:", error);
 
-    await slackApp.client.chat.postMessage({
-      channel: channel_id,
-      text: "There was an error fetching the balance. Please check the address and try again.",
-    });
-
     return res.status(200).json({
       response_type: "ephemeral",
-      text: "Error fetching balance.",
+      text: "❌ There was an error fetching the balance. Please check the address and try again.",
     });
   }
 });
 
 // Handle Slack Messages
-slackApp.message("hello", async ({ message, say }) => {
+/*slackApp.message("hello", async ({ message, say }) => {
   await say(
     `Hey there, I am dappunk's official Admin Wallet tracker, Nice to Meet you. <@${message.user}>!`
   );
+});*/
+
+slackApp.message(async ({ message, say, context }) => {
+  const botUserId = context.botUserId; // Get the bot's user ID
+
+  // Check if the message includes a mention of the bot
+  if (message.text.includes(`<@${botUserId}>`)) {
+    await say(
+      `Hey there, I am Dappunk's official Admin Wallet tracker. Nice to meet you, <@${message.user}>!`
+    );
+  }
 });
 
 // balance fetcher and updater
-const fetchBalance = async () => {
+/*const fetchBalance = async () => {
   const provider = new ethers.JsonRpcProvider(process.env.BALLANCE_FETCHER_API);
   const wallet = process.env.ADMIN_WALLET; // Set your wallet address here
   try {
@@ -215,11 +284,11 @@ const fetchBalance = async () => {
     console.error("Error fetching balance:", error);
   }
 };
+*/
 
 // Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   await slackApp.start(); // Explicitly start the Bolt app
   console.log(`⚡️ Express Server with Slack Bolt is running on port ${PORT}`);
-  await fetchBalance();
 });

@@ -1,0 +1,11 @@
+{
+  "wallets": [
+    "0x8d23744F47953D24328278134488206A37A692Aa",
+    "0x4910A3E9f7d9A04eEed15093F33f9Ec26d480F2D"
+  ],
+  "channels": ["all-me"],
+  "idToAddress": {
+    "1": "0x8d23744F47953D24328278134488206A37A692Aa",
+    "2": "0x4910A3E9f7d9A04eEed15093F33f9Ec26d480F2D"
+  }
+}
