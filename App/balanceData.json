@@ -1,0 +1,30 @@
+{
+  "weeklyBalances": {
+    "0x8d23744f47953d24328278134488206a37a692aa": {
+      "previousBalance": 9.45e-13,
+      "totalBalanceSpent": 0,
+      "calls": 0,
+      "avgBalance": 0
+    },
+    "0x4910a3e9f7d9a04eeed15093f33f9ec26d480f2d": {
+      "previousBalance": 81.26066998895918,
+      "totalBalanceSpent": 0,
+      "calls": 0,
+      "avgBalance": 0
+    }
+  },
+  "monthlyBalances": {
+    "0x8d23744f47953d24328278134488206a37a692aa": {
+      "previousBalance": 9.45e-13,
+      "totalBalanceSpent": 0,
+      "calls": 0,
+      "avgBalance": 0
+    },
+    "0x4910a3e9f7d9a04eeed15093f33f9ec26d480f2d": {
+      "previousBalance": 81.26066998895918,
+      "totalBalanceSpent": 0,
+      "calls": 0,
+      "avgBalance": 0
+    }
+  }
+}
