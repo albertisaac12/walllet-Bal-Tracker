@@ -69,6 +69,7 @@ This is a Slack bot built using [Slack Bolt](https://slack.dev/bolt-js/) and [Ha
 - Ensure that the Slack bot token and signing secret are correctly set in `.env`.
 - Check that the `config.json` file exists and has valid JSON syntax.
 - Verify that the Alchemy API key is correct and has the necessary permissions.
+- Please use App4.js
 
 ## License
 This project is open-source and available under the MIT License.
